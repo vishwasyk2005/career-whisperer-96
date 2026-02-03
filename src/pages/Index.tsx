@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import { Sparkles, RotateCcw, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { Sparkles, RotateCcw, PanelRightClose, PanelRightOpen, MessageSquare, ClipboardList } from "lucide-react";
 import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput } from "@/components/ChatInput";
 import { SuggestionChips } from "@/components/SuggestionChips";
@@ -12,11 +12,14 @@ import { QuizAnswers, CareerSnapshot as CareerSnapshotType } from "@/types/caree
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
+type TabType = "chat" | "quiz";
+
 const Index = () => {
   const { messages, isLoading, sendMessage, clearMessages } = useCareerChat();
   const { snapshot, updateSnapshot, updateFromConversation, resetSnapshot } = useCareerSnapshot();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [showQuiz, setShowQuiz] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>("chat");
+  const [quizCompleted, setQuizCompleted] = useState(false);
   const [showPanel, setShowPanel] = useState(true);
   const isMobile = useIsMobile();
 
@@ -36,7 +39,7 @@ const Index = () => {
 
   const handleQuizComplete = (quizSnapshot: CareerSnapshotType, answers: QuizAnswers) => {
     updateSnapshot(quizSnapshot);
-    setShowQuiz(false);
+    setQuizCompleted(true);
     
     // Create initial message based on quiz answers
     const interests = (answers.interests as string[]) || [];
@@ -62,22 +65,22 @@ const Index = () => {
     
     initialMessage += " Can you help me figure out the best career path and what I should focus on?";
     
+    // Switch to chat and send the message
+    setActiveTab("chat");
     sendMessage(initialMessage);
   };
 
-  const handleSkipQuiz = () => {
-    setShowQuiz(false);
+  const handleRetakeQuiz = () => {
+    setQuizCompleted(false);
   };
 
   const handleClearChat = () => {
     clearMessages();
     resetSnapshot();
-    setShowQuiz(true);
   };
 
   const handleFeedback = (index: number, feedback: "up" | "down") => {
     console.log(`Message ${index} received ${feedback} feedback`);
-    // Could be extended to send to backend for analytics
   };
 
   // Hide panel by default on mobile
@@ -87,7 +90,7 @@ const Index = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Main Chat Area */}
+      {/* Main Area */}
       <div className={cn(
         "flex flex-col flex-1 min-h-screen transition-all duration-300",
         showPanel && !isMobile ? "mr-80" : ""
@@ -105,7 +108,7 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {!isEmpty && (
+              {activeTab === "chat" && !isEmpty && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -130,57 +133,133 @@ const Index = () => {
               </Button>
             </div>
           </div>
+          
+          {/* Tabs */}
+          <div className="max-w-3xl mx-auto px-4 pb-2">
+            <div className="flex gap-1 p-1 bg-muted rounded-lg w-fit">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setActiveTab("chat")}
+                className={cn(
+                  "gap-2 rounded-md transition-all",
+                  activeTab === "chat" 
+                    ? "bg-background shadow-sm text-foreground" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <MessageSquare className="w-4 h-4" />
+                Chat
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setActiveTab("quiz")}
+                className={cn(
+                  "gap-2 rounded-md transition-all",
+                  activeTab === "quiz" 
+                    ? "bg-background shadow-sm text-foreground" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <ClipboardList className="w-4 h-4" />
+                Career Quiz
+                {quizCompleted && (
+                  <span className="w-2 h-2 rounded-full bg-green-500" />
+                )}
+              </Button>
+            </div>
+          </div>
         </header>
 
-        {/* Chat Area */}
+        {/* Content Area */}
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-4 py-6">
-            {showQuiz && isEmpty ? (
-              <div className="flex flex-col items-center justify-center min-h-[60vh] animate-fade-in">
-                <div className="w-20 h-20 rounded-2xl gradient-hero flex items-center justify-center mb-6 shadow-soft">
-                  <Sparkles className="w-10 h-10 text-primary-foreground" />
-                </div>
-                <h2 className="font-display font-bold text-2xl md:text-3xl text-foreground mb-3 text-center">
-                  Let's Understand You Better
-                </h2>
-                <p className="text-muted-foreground max-w-md mb-8 text-center">
-                  Answer a few quick questions so I can give you personalized career guidance.
-                </p>
-                <CareerQuiz onComplete={handleQuizComplete} onSkip={handleSkipQuiz} />
-              </div>
-            ) : isEmpty ? (
-              <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fade-in">
-                <div className="w-20 h-20 rounded-2xl gradient-hero flex items-center justify-center mb-6 shadow-soft">
-                  <Sparkles className="w-10 h-10 text-primary-foreground" />
-                </div>
-                <h2 className="font-display font-bold text-2xl md:text-3xl text-foreground mb-3">
-                  Your Career Journey Starts Here
-                </h2>
-                <p className="text-muted-foreground max-w-md mb-8">
-                  I'm your AI career counselor. Ask me anything about career paths, 
-                  resumes, interviews, or professional growth.
-                </p>
-                <SuggestionChips onSelect={sendMessage} disabled={isLoading} />
+            {activeTab === "quiz" ? (
+              /* Quiz Tab */
+              <div className="animate-fade-in">
+                {quizCompleted ? (
+                  <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
+                    <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                      <ClipboardList className="w-8 h-8 text-green-600" />
+                    </div>
+                    <h2 className="text-xl font-bold text-foreground mb-2">Quiz Completed!</h2>
+                    <p className="text-muted-foreground mb-6 max-w-md">
+                      Your career profile has been created. Check the Career Snapshot panel 
+                      to see your profile, or chat with the AI for personalized guidance.
+                    </p>
+                    <div className="flex gap-3">
+                      <Button variant="outline" onClick={handleRetakeQuiz}>
+                        Retake Quiz
+                      </Button>
+                      <Button onClick={() => setActiveTab("chat")} className="gradient-hero text-primary-foreground">
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        Go to Chat
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center pt-6">
+                    <div className="w-16 h-16 rounded-2xl gradient-hero flex items-center justify-center mb-6 shadow-soft">
+                      <ClipboardList className="w-8 h-8 text-primary-foreground" />
+                    </div>
+                    <h2 className="font-display font-bold text-2xl md:text-3xl text-foreground mb-3 text-center">
+                      Career Assessment Quiz
+                    </h2>
+                    <p className="text-muted-foreground max-w-md mb-8 text-center">
+                      Answer a few questions to help us understand your background and provide 
+                      personalized career recommendations.
+                    </p>
+                    <CareerQuiz 
+                      onComplete={handleQuizComplete} 
+                      onSkip={() => setActiveTab("chat")} 
+                    />
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="space-y-4 pb-4">
-                {messages.map((msg, i) => (
-                  <ChatMessage
-                    key={i}
-                    role={msg.role}
-                    content={msg.content}
-                    isStreaming={isLoading && i === messages.length - 1 && msg.role === "assistant"}
-                    onFeedback={(feedback) => handleFeedback(i, feedback)}
-                  />
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
+              /* Chat Tab */
+              <>
+                {isEmpty ? (
+                  <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fade-in">
+                    <div className="w-20 h-20 rounded-2xl gradient-hero flex items-center justify-center mb-6 shadow-soft">
+                      <Sparkles className="w-10 h-10 text-primary-foreground" />
+                    </div>
+                    <h2 className="font-display font-bold text-2xl md:text-3xl text-foreground mb-3">
+                      Your Career Journey Starts Here
+                    </h2>
+                    <p className="text-muted-foreground max-w-md mb-4">
+                      I'm your AI career counselor. Ask me anything about career paths, 
+                      resumes, interviews, or professional growth.
+                    </p>
+                    {!quizCompleted && (
+                      <p className="text-sm text-primary mb-6">
+                        💡 Take the <button onClick={() => setActiveTab("quiz")} className="underline font-medium hover:no-underline">Career Quiz</button> for personalized recommendations
+                      </p>
+                    )}
+                    <SuggestionChips onSelect={sendMessage} disabled={isLoading} />
+                  </div>
+                ) : (
+                  <div className="space-y-4 pb-4">
+                    {messages.map((msg, i) => (
+                      <ChatMessage
+                        key={i}
+                        role={msg.role}
+                        content={msg.content}
+                        isStreaming={isLoading && i === messages.length - 1 && msg.role === "assistant"}
+                        onFeedback={(feedback) => handleFeedback(i, feedback)}
+                      />
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+                )}
+              </>
             )}
           </div>
         </main>
 
-        {/* Input Area */}
-        {!showQuiz && (
+        {/* Input Area - Only show in chat tab */}
+        {activeTab === "chat" && (
           <footer className="sticky bottom-0 bg-gradient-to-t from-background via-background to-transparent pt-6 pb-4">
             <div className="max-w-3xl mx-auto px-4">
               <ChatInput onSend={sendMessage} isLoading={isLoading} />
@@ -201,6 +280,20 @@ const Index = () => {
       >
         <div className="pt-16">
           <CareerSnapshot snapshot={snapshot} onUpdate={updateSnapshot} />
+          
+          {/* Quick actions */}
+          <div className="mt-6 space-y-3">
+            {!quizCompleted && (
+              <Button 
+                variant="outline" 
+                className="w-full justify-start gap-2"
+                onClick={() => setActiveTab("quiz")}
+              >
+                <ClipboardList className="w-4 h-4" />
+                Take Career Quiz
+              </Button>
+            )}
+          </div>
           
           {/* Quick tips */}
           <div className="mt-6 p-4 bg-muted/50 rounded-xl">
